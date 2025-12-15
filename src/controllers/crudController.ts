@@ -61,6 +61,60 @@ export const createController = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteController = (req: Request, res: Response) => {};
+export const deleteController = async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  const { contentId } = req.body;
 
-export const updateController = (req: Request, res: Response) => {};
+  try {
+    const result = await ContentModel.deleteOne({ contentId, userId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        msg: "Content not found ",
+      });
+    }
+    res.status(200).json({
+      msg: "Content Deleted!",
+    });
+  } catch (e) {
+    res.status(200).json({ msg: "Error updating Content" });
+  }
+};
+
+export const updateController = async (req: Request, res: Response) => {
+  const userId = req.userId;
+  const contentId = req.headers.contentId;
+
+  if (!contentId) {
+    return res.status(401);
+  }
+
+  const parsedData = contentSchema.safeParse(req.body);
+  if (!parsedData.success) {
+    return res
+      .status(400)
+      .json({ msg: "Invalid content", errors: parsedData.error });
+  }
+  const { link, type, title, tags } = parsedData.data;
+  try {
+    const result = await ContentModel.updateOne(
+      {
+        userId: userId!,
+        _id: contentId,
+      },
+      {
+        link,
+        type,
+        title,
+        tags,
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(401).json({ msg: "Content not found or unauthorized" });
+    }
+    res.status(200).json({ msg: "Content updated!" });
+  } catch (error) {
+    res.status(500).json({ msg: "Error updating todo" });
+  }
+};
