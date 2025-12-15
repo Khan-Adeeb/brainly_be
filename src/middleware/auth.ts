@@ -19,6 +19,9 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const verfyingToken = jwt.verify(token, secret) as JwtPayload;
+    if (!verfyingToken) {
+    return res.status(401).json({ msg: "Unauthorized" });
+  }
     req.userId = verfyingToken.id as string;
 
     next();
