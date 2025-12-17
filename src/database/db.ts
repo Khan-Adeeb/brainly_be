@@ -27,7 +27,8 @@ const TagSchema = new Schema({
 
 const LinkSchema = new Schema({
   hash: { type: String, required: true },
-  userId: { type: Types.ObjectId, ref: "users" },
+  userId: { type: Types.ObjectId, ref: "users" , required:true},
+  contentId: {type: Types.ObjectId, ref: "contents"}
 });
 
 const ContentModel = mongoose.model("contents", ContentSchema);

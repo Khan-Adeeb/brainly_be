@@ -18,17 +18,16 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
   }
 
   try {
-    const verfyingToken = jwt.verify(token, secret) as JwtPayload;
-    console.log(verfyingToken);
-    
-    if (!verfyingToken) {
+    const verifyingToken = jwt.verify(token, secret) as JwtPayload;
+    console.log(verifyingToken);
+
+    if (!verifyingToken) {
       return res.status(401).json({ msg: "Unauthorized" });
     }
-    req.userId = verfyingToken.id as string;
+    req.userId = verifyingToken.id as string;
 
     next();
   } catch (error) {
     return res.status(401).json({ msg: "Invalid or expired token" });
   }
 };
- 
