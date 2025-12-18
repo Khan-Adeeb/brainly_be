@@ -11,15 +11,20 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
   }
 
   const token = authHeader.split(" ")[1];
-  const secret = process.env.JWT_SECRET as string;
 
   if (!token) {
-    return res.json({ msg: "Token not available" });
+    return res.status(401).json({ msg: "Token not provided" });
+  }
+
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    console.error("JWT_SECRET not configured");
+    return res.status(500).json({ msg: "Server configuration error" });
   }
 
   try {
     const verifyingToken = jwt.verify(token, secret) as JwtPayload;
-    console.log(verifyingToken);
 
     if (!verifyingToken) {
       return res.status(401).json({ msg: "Unauthorized" });
@@ -27,7 +32,13 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
     req.userId = verifyingToken.id as string;
 
     next();
-  } catch (error) {
-    return res.status(401).json({ msg: "Invalid or expired token" });
+  } catch (error : any) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ msg: "Token expired" });
+    }
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({ msg: "Invalid token" });
+    }
+    return res.status(401).json({ msg: "Authentication failed" });
   }
 };

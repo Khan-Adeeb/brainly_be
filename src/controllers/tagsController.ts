@@ -6,26 +6,52 @@ const TagSchema = z.object({
   title: z
     .string("must be string")
     .min(1)
-    .regex(/^\S+$/, "Must be a single word (no spaces)"),
+    .regex(/^\S+$/, "Must be a single word (no spaces)")
+    .toLowerCase(),
 });
 
-export const tagsController = async ( req: Request , res: Response) => {
-  const htags = TagSchema.safeParse(req.body);
+export const tagsController = async (req: Request, res: Response) => {
+  const parsedTag = TagSchema.safeParse(req.body);
 
-  if (!htags.success) {
-    return res.json({ msg: htags.error });
+  if (!parsedTag.success) {
+    return res.status(400).json({
+      msg: "Invalid tag",
+      errors: parsedTag.error,
+    });
   }
 
-  const { title } = htags.data;
+  const { title } = parsedTag.data;
 
   try {
-    await TagModel.create({
-      title,
+    const existingTag = await TagModel.findOne({ title });
+    if (existingTag) {
+      return res.status(200).json({
+        msg: "Tag already exists",
+        tag: existingTag,
+      });
+    }
+
+    const newTag = await TagModel.create({ title });
+
+    return res.status(201).json({
+      msg: "Tag created successfully",
+      tag: newTag,
     });
-    return res.status(200).json({ msg: "tag added ", title });
   } catch (error) {
+    console.error("Error creating tag:", error);
     return res.status(500).json({
-      msg: "Error creating new Tag",
+      msg: "Error creating tag",
     });
   }
 };
+
+export const getAllTagsController = async (req: Request, res: Response) => {
+  try {
+    const tags = await TagModel.find().sort({ title: 1 });
+    res.status(200).json({ tags });
+  } catch (error) {
+    console.error("Error fetching tags:", error);
+    res.status(500).json({ msg: "Error fetching tags" });
+  }
+};
+

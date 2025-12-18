@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ContentModel } from "../database/db";
+import { ContentModel, ContLinkModel } from "../database/db";
 import { z } from "zod";
 import mongoose from "mongoose";
 
@@ -16,11 +16,10 @@ export const getController = async (req: Request, res: Response) => {
 };
 
 const contentSchema = z.object({
-  link: z.string().min(1),
+  link: z.string().url("Must be a valid URL").min(1),
   type: z.enum(["audio", "video", "link"]),
-  title: z.string().min(1),
-  tags: z.array(z.string()).optional().default([]),
-  share: z.boolean().default(false)
+  title: z.string().min(1).max(200, "Title too long"),
+  tags: z.array(z.string()).max(6, "Maximum 6 tags").optional().default([]),
 });
 
 export const createController = async (req: Request, res: Response) => {
@@ -35,9 +34,15 @@ export const createController = async (req: Request, res: Response) => {
   const { link, type, title, tags } = parsedData.data;
 
   try {
-    const tagObjectIds = tags.map(
-      (tagId) => new mongoose.Types.ObjectId(tagId)
-    );
+
+    // AI HELP
+     const tagObjectIds = tags.map(tagId => {
+      if (!mongoose.Types.ObjectId.isValid(tagId)) {
+        throw new Error(`Invalid tag ID: ${tagId}`);
+      }
+      return new mongoose.Types.ObjectId(tagId);
+    });
+    // 
 
     await ContentModel.create({
       link,
@@ -64,24 +69,26 @@ export const deleteController = async (req: Request, res: Response) => {
   const { contentId } = req.body;
 
   try {
-    const result = await ContentModel.deleteOne({ contentId, userId });
+    const result = await ContentModel.deleteOne({ _id: contentId, userId });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({
         msg: "Content not found ",
       });
     }
+     await ContLinkModel.deleteMany({ contentId });
+
     res.status(200).json({
       msg: "Content Deleted!",
     });
   } catch (e) {
-    res.status(200).json({ msg: "Error updating Content" });
+    res.status(500).json({ msg: "Error updating Content" });
   }
 };
 
 export const updateController = async (req: Request, res: Response) => {
   const userId = req.userId;
-  const contentId = req.headers.contentId;
+  const contentId = req.body.contentId;
 
   if (!contentId) {
     return res.status(401);
@@ -109,7 +116,7 @@ export const updateController = async (req: Request, res: Response) => {
     );
 
     if (result.matchedCount === 0) {
-      return res.status(401).json({ msg: "Content not found or unauthorized" });
+      return res.status(404).json({ msg: "Content not found or unauthorized" });
     }
     res.status(200).json({ msg: "Content updated!" });
   } catch (error) {

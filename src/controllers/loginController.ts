@@ -13,6 +13,8 @@ export const signupController = async (req: Request, res: Response) => {
     password: z.string().min(6).max(50),
     name: z
       .string()
+      .min(2, "Name must be at least 2 characters")
+      .max(50, "Name too long")
       .regex(/^[A-Za-z\s]+$/, "Name can only contain letters and spaces"),
   });
 
@@ -28,6 +30,11 @@ export const signupController = async (req: Request, res: Response) => {
   const { email, password, name } = parseData.data;
 
   try {
+     const existingUser = await UserModel.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ msg: "Email already registered" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 5);
 
     await UserModel.create({
@@ -38,31 +45,46 @@ export const signupController = async (req: Request, res: Response) => {
     res.json({
       msg: "signed up sucessfully",
     });
-  } catch (error) {}
-  res.json({
-    msg: "already signed in!",
-  });
+  } catch (error) {
+    return res.status(500).json({ msg: "Error during signup" });
+  }
 };
 
+const signinSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
 export const signinController = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const parseData = signinSchema.safeParse(req.body);
+
+  if (!parseData.success) {
+    return res.status(400).json({
+      msg: "Invalid input",
+      errors: parseData.error,
+    });
+  }
+
+  const { email, password } = parseData.data;
 
   try {
     const user = await UserModel.findOne({ email });
 
     if (!user) {
-      return res.status(403).json({ msg: "Invalid email or password" });
+      return res.status(401).json({ msg: "Invalid credentials" });
     }
 
     const decryptPass = await bcrypt.compare(password, user.password);
 
     if (!decryptPass) {
-      return res.status(403).json({ msg: "Invalid email or password" });
+      return res.status(401).json({ msg: "Invalid email or password" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET as string, 
+      {expiresIn: "7d"}
+    );
 
     return res.json({
       msg: "Sucessfully Signed In",

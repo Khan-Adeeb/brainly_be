@@ -1,5 +1,4 @@
 import mongoose, { Schema, Types } from "mongoose";
-import { required } from "zod/mini";
 
 const UserSchema = new Schema({
   email: {
