@@ -2,7 +2,7 @@ import { Router } from "express";
 const shareRouter = Router();
 import { Request, Response } from "express";
 import { auth } from "../middleware/auth";
-import { LinkModel } from "../database/db";
+import { ContentModel, ContLinkModel, LinkModel } from "../database/db";
 import { random } from "../utils/random";
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -17,25 +17,23 @@ shareRouter.post("/mindShare", auth, async (req: Request, res: Response) => {
 
       if (LinkalreadyExists) {
         const hashlink = LinkalreadyExists.hash;
-        return res
-          .status(200)
-          .json({ msg: "link already created", link: hashlink });
+        return res.status(200).json({
+          "Link already created ": `${process.env.BASEURL}/share/mind/${hashlink}`,
+        });
       }
 
-      const hash = random(10);
+      const hash = random(14);
 
       await LinkModel.create({
         hash,
         userId,
       });
 
-      res
-        .status(200)
-        .json({
-          "Here is your Sharable Link": `${process.env.BASEURL}/share/mind/${hash}`,
-        });
+      res.status(200).json({
+        "Here is your Sharable Link": `${process.env.BASEURL}/share/mind/${hash}`,
+      });
     } catch (error) {
-      res.status(411).json({ msg: "Unexpected Problem Occured" });
+      res.status(411).json({ msg: "Unexpected Problem Occurred" });
     }
   } else {
     try {
@@ -49,18 +47,114 @@ shareRouter.post("/mindShare", auth, async (req: Request, res: Response) => {
         msg: "Link Deleted!",
       });
     } catch (error) {
-        res.json({msg: "Unexpected error while deleting link"})
+      res.json({ msg: "Unexpected error while deleting link" });
     }
   }
 });
 
-shareRouter.get("/mind/:ShareLink", (req: Request, res: Response) => {});
+shareRouter.get("/mind/:ShareLink", async (req: Request, res: Response) => {
+  const hash = req.params.ShareLink!;
 
-shareRouter.post("/contentShare", auth, (req: Request, res: Response) => {
-  const share = req.params.share;
-  const contentId = req.body;
+  try {
+    const link = await LinkModel.findOne({ hash });
+    if (!link) {
+      return res.status(404).json({ msg: "link is invalid or not found" });
+    }
+
+    const userId = link.userId.toString();
+
+    const contents = await ContentModel.find({ userId })
+      .populate("userId", "name")
+      .populate("tags", "title");
+
+    return res.status(200).json({
+      contents,
+    });
+  } catch (error) {
+    return res.status(404).json({ msg: "Page not found" });
+  }
 });
 
-shareRouter.get("/content/:ShareLink", (req: Request, res: Response) => {});
+shareRouter.post("/contentShare", auth, async (req: Request, res: Response) => {
+  const { share, contentId } = req.body;
+  const userId = req.userId!;
+
+  if (share) {
+    try {
+      const checkContentExists = await ContentModel.find({ contentId });
+
+      if (!checkContentExists) {
+        return res
+          .status(401)
+          .json({ msg: "Content Does Not Exists or Invalid" });
+      }
+
+      const LinkalreadyExists = await ContLinkModel.findOne({
+        userId,
+        contentId,
+      });
+
+      if (LinkalreadyExists) {
+        const hashlink = LinkalreadyExists.hash;
+        return res.status(200).json({
+          "Link already created ": `${process.env.BASEURL}/share/content/${hashlink}`,
+        });
+      }
+
+      const hash = random(14);
+
+      await ContLinkModel.create({
+        hash,
+        userId,
+        contentId,
+      });
+
+      res.status(200).json({
+        "Here is your Sharable Link": `${process.env.BASEURL}/share/content/${hash}`,
+      });
+    } catch (error) {
+      res.status(411).json({ msg: "Unexpected Problem Occurred" });
+    }
+  } else {
+    try {
+      const removeLink = await ContLinkModel.deleteOne({ userId, contentId });
+      if (removeLink.deletedCount === 0) {
+        return res.status(404).json({
+          msg: "Link not found ",
+        });
+      }
+      res.status(200).json({
+        msg: "Link Deleted!",
+      });
+    } catch (error) {
+      res.json({ msg: "Unexpected error while deleting link" });
+    }
+  }
+});
+
+shareRouter.get("/content/:ShareLink", async (req: Request, res: Response) => {
+  const hash = req.params.ShareLink!;
+
+  try {
+    const link = await ContLinkModel.findOne({ hash });
+    if (!link) {
+      return res.status(404).json({ msg: "link is invalid or not found" });
+    }
+
+    console.log(link);
+
+    const contentId = link.contentId.toString();
+
+    const content = await ContentModel.findOne({ _id: contentId })
+      .populate("userId", "name")
+      .populate("tags", "title");
+
+    return res.status(200).json({
+      content,
+    });
+  } catch (error) {
+    return res.status(404).json({ msg: "Page not found" });
+  }
+});
 
 export default shareRouter;

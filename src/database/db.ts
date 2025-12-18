@@ -1,4 +1,5 @@
 import mongoose, { Schema, Types } from "mongoose";
+import { required } from "zod/mini";
 
 const UserSchema = new Schema({
   email: {
@@ -26,14 +27,20 @@ const TagSchema = new Schema({
 });
 
 const LinkSchema = new Schema({
-  hash: { type: String, required: true },
+  hash: { type: String, required: true, unique:true},
   userId: { type: Types.ObjectId, ref: "users" , required:true},
-  contentId: {type: Types.ObjectId, ref: "contents"}
+});
+
+const ContLinkSchema = new Schema({
+  hash: { type: String, required: true, unique:true},
+  userId: { type: Types.ObjectId, ref: "users" , required:true},
+  contentId: {type: Types.ObjectId, ref: "contents", required:true}
 });
 
 const ContentModel = mongoose.model("contents", ContentSchema);
 const UserModel = mongoose.model("users", UserSchema);
 const TagModel = mongoose.model("tags", TagSchema);
 const LinkModel = mongoose.model("links", LinkSchema);
+const ContLinkModel = mongoose.model("contlinks", ContLinkSchema);
 
-export { ContentModel, UserModel, TagModel, LinkModel };
+export { ContentModel, UserModel, TagModel, LinkModel, ContLinkModel };
