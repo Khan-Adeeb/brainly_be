@@ -17,12 +17,14 @@ const ContentSchema = new Schema({
   link: { type: String, required: true },
   type: { type: String, enum: ContentTypes, required: true },
   title: { type: String, required: true },
+  description : {type: String},
   tags: [{ type: Types.ObjectId, ref: "tags" }],
   userId: { type: Types.ObjectId, ref: "users" , required: true},
 });
 
 const TagSchema = new Schema({
   title: { type: String, required: true, unique: true },
+  userId: { type: Types.ObjectId, ref: "users" , required: true},
 });
 
 const LinkSchema = new Schema({
